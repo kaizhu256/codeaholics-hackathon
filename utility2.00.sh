@@ -1,13 +1,13 @@
 #!/bin/bash
-shCiBuild() {
+shBuild() {
   ## this function builds the app
   ## init ci build
   if [ ! "$NODEJS_PACKAGE_JSON_NAME" ]
   then
-    shCiBuildLog init "could not read package.json"
+    shBuildLog init "could not read package.json"
     exit 1
   fi
-  shCiBuildLog aesDecrypt "shasum - $(printf $AES_256_KEY | shasum) \$AES_256_KEY"
+  shBuildLog aesDecrypt "shasum - $(printf $AES_256_KEY | shasum) \$AES_256_KEY"
   ## decrypt and eval $AES_ENCRYPTED_SH
   eval "$(shUtility2Decrypt)" || exit $?
   if [ ! "$GITHUB_TOKEN" ]
@@ -51,7 +51,7 @@ shCiBuild() {
   fi
   if [ ! "$CI_COMMIT_MESSAGE" ]
   then
-    export CI_COMMIT_MESSAGE="$(git log -1 --pretty=%s)"
+    export CI_COMMIT_MESSAGE=$(git log -1 --pretty=%s)
   fi
   if [ ! "$CI_COMMIT_INFO" ]
   then
@@ -60,20 +60,20 @@ shCiBuild() {
   export CI_BUILD_DIR_COMMIT=$CI_BUILD_DIR/$CI_BUILD_NUMBER.$CI_BRANCH.$CI_COMMIT_ID
   export CI_BUILD_DIR_LATEST=$CI_BUILD_DIR/latest.$CI_BRANCH
   ## used in test report summary
-  export GITHUB_REPO_URL="https://github.com/$GITHUB_REPO/tree/$CI_BRANCH"
+  export GITHUB_REPO_URL=https://github.com/$GITHUB_REPO/tree/$CI_BRANCH
   ## npm test local app
-  shCiBuildNpmTestLocal || shCiBuildExit $?
+  shBuildNpmTestLocal || shBuildExit $?
   if [ "$CI_BRANCH" != local ]
   then
     ## deploy app to heroku
     if [ "$GIT_SSH_KEY" ]
     then
-      shCiBuildHerokuDeploy || shCiBuildExit $?
+      shBuildHerokuDeploy || shBuildExit $?
     fi
     ## run saucelabs tests on heroku server
     if [ "$SAUCE_ACCESS_KEY" ] && [ "$SAUCE_USERNAME" ]
     then
-      shCiBuildSaucelabsTest || shCiBuildExit $?
+      shBuildSaucelabsTest || shBuildExit $?
     fi
     if [ "$NPM_AUTH" ]
     then
@@ -82,26 +82,26 @@ shCiBuild() {
         "$NODEJS_PACKAGE_JSON_VERSION"\
         $(npm info $NODEJS_PACKAGE_JSON_NAME version 2>/dev/null)
       then
-        shCiBuildNpmPublish || shCiBuildExit $?
+        shBuildNpmPublish || shBuildExit $?
       fi
       ## npm test latest published app
-      shCiBuildNpmTestPublished
+      shBuildNpmTestPublished
     fi
     ## save $EXIT_CODE
     EXIT_CODE=$?
     ## copy merged test-report.json into current directory
-    cp .build/test-report.json $CWD/.build || shCiBuildExit $?
+    cp .build/test-report.json $CWD/.build || shBuildExit $?
     ## restore $CWD
-    cd $CWD || shCiBuildExit $?
+    cd $CWD || shBuildExit $?
     ## merge test report into $CWD
-    $UTILITY2_JS --mode-cli=testReportMerge || shCiBuildExit $?
-    shCiBuildLog npmTestPublished "npm test of latest published package passed"
+    $UTILITY2_JS --mode-cli=testReportMerge || shBuildExit $?
+    shBuildLog npmTestPublished "npm test of latest published package passed"
   fi
   ## gracefully exit ci build
-  shCiBuildExit $EXIT_CODE
+  shBuildExit $EXIT_CODE
 }
 
-shCiBuildExit() {
+shBuildExit() {
   ## this function gracefully exits the ci build
   ## save exit code
   local EXIT_CODE=$?
@@ -116,9 +116,9 @@ shCiBuildExit() {
     ## push build artifact to github
     for FILE in $CI_BUILD_DIR_COMMIT $CI_BUILD_DIR_LATEST
     do
-      shCiBuildLog buildExit\
+      shBuildLog buildExit\
         "uploading test report https://$GITHUB_GH_PAGES/$FILE/test-report.html ..."
-      shCiBuildLog buildExit\
+      shBuildLog buildExit\
         "uploading coverage report https://$GITHUB_GH_PAGES/$FILE/coverage-report/index.html\
 ..."
       ## update build artifact with test and coverage reports
@@ -133,9 +133,9 @@ shCiBuildExit() {
   exit $EXIT_CODE
 }
 
-shCiBuildHerokuDeploy() {
+shBuildHerokuDeploy() {
   ## this function deploys the app to heroku
-  shCiBuildLog herokuDeploy "deploying $NODEJS_PACKAGE_JSON_NAME to heroku ..."
+  shBuildLog herokuDeploy "deploying $NODEJS_PACKAGE_JSON_NAME to heroku ..."
   ## export $GIT_SSH
   export GIT_SSH=$UTILITY2_DIR/.install/git-ssh.sh
   ## export and create $GIT_SSH_KEY_FILE
@@ -145,7 +145,7 @@ shCiBuildHerokuDeploy() {
   ## secure $GIT_SSH_KEY_FILE
   chmod 600 $GIT_SSH_KEY_FILE || return $?
   ## init clean repo in /tmp/app
-  shCiBuildAppCopy && cd /tmp/app || return $?
+  shBuildAppCopy && cd /tmp/app || return $?
   ## init .git
   git init || return $?
   ## init .git/config
@@ -161,41 +161,41 @@ shCiBuildHerokuDeploy() {
   ## init $HEROKU_URL
   local HEROKU_URL=http://$NODEJS_PACKAGE_JSON_NAME-unstable.herokuapp.com
   ## check deployed webpage on heroku
-  shCiBuildLog herokuDeploy "checking deployed webpage $HEROKU_URL ..."
+  shBuildLog herokuDeploy "checking deployed webpage $HEROKU_URL ..."
   (
     curl -3fLs $HEROKU_URL > /dev/null\
-      && shCiBuildLog herokuDeploy "check passed"\
+      && shBuildLog herokuDeploy "check passed"\
       || (shCiBUildLog herokuDeploy "check failed"; return 1)
   )
   ## restore $CWD
   cd $CWD || return $?
 }
 
-shCiBuildNpmPublish() {
+shBuildNpmPublish() {
   ## this function npm publishes the app if the version changed
-  shCiBuildLog npmPublish "npm publish $NODEJS_PACKAGE_JSON_NAME ..."
+  shBuildLog npmPublish "npm publish $NODEJS_PACKAGE_JSON_NAME ..."
   ## init .npmrc
   printf "_auth = $NPM_AUTH\nemail = nobody\n" > $HOME/.npmrc || return $?
   ## init clean repo in /tmp/app
-  shCiBuildAppCopy && cd /tmp/app || return $?
+  shBuildAppCopy && cd /tmp/app || return $?
   ## publish npm package
   npm publish || return $?
-  shCiBuildLog npmPublish "npm publish succeeded"
+  shBuildLog npmPublish "npm publish succeeded"
   ## wait awhile for npm registry to sync
   sleep 10 || return $?
 }
 
-shCiBuildNpmTestLocal() {
+shBuildNpmTestLocal() {
   ## this function runs npm test on the local app
-  shCiBuildLog npmTestLocal "npm test $CWD ..."
+  shBuildLog npmTestLocal "npm test $CWD ..."
   ## npm test
   npm test || return $?
-  shCiBuildLog npmTestLocal "npm test passed"
+  shBuildLog npmTestLocal "npm test passed"
 }
 
-shCiBuildNpmTestPublished() {
+shBuildNpmTestPublished() {
   ## this function npm tests the latest published version of the app
-  shCiBuildLog npmTestPublished\
+  shBuildLog npmTestPublished\
     "npm install and test published package $NODEJS_PACKAGE_JSON_NAME ..."
   ## install and test latest npm package in /tmp dir with no external npm dependencies
   ## cleanup /tmp
@@ -210,16 +210,16 @@ shCiBuildNpmTestPublished() {
   npm test --utility2-mode-test-report-merge || return $?
 }
 
-shCiBuildSaucelabsTest() {
+shBuildSaucelabsTest() {
   ## this function runs headless saucelabs browser tests
-  shCiBuildLog saucelabsTest "running headless saucelabs browser tests ..."
+  shBuildLog saucelabsTest "running headless saucelabs browser tests ..."
   ## add random salt to CI_BUILD_NUMBER to prevent conflict
   ## when re-running saucelabs with same CI_BUILD_NUMBER
-  export CI_BUILD_NUMBER_SAUCELABS="$CI_BUILD_NUMBER.$(openssl rand -hex 8)"
+  export CI_BUILD_NUMBER_SAUCELABS=$CI_BUILD_NUMBER.$(openssl rand -hex 8)
   ## run saucelabs tests
   $UTILITY2_JS --mode-cli=headlessSaucelabsPlatformsList\
     < .install/saucelabs-test-platforms-list.json || return $?
-  shCiBuildLog saucelabsTest "saucelabs tests passed"
+  shBuildLog saucelabsTest "saucelabs tests passed"
 }
 
 shGitSquash() {

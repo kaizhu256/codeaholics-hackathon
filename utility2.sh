@@ -20,7 +20,7 @@ shAesEncrypt() {
   openssl enc -aes-256-cbc -K $AES_256_KEY -iv $IV | base64 | tr -d "\n" || return $?
 }
 
-shCiBuildLog() {
+shBuildLog() {
   ## this function logs output about ci build state
   export MODE_CI_BUILD=$1
   printf "\n[MODE_CI_BUILD=$MODE_CI_BUILD] - $2\n\n" || return $?
@@ -62,8 +62,8 @@ shModuleEval() {
 
 shTravisEncrypt() {
   ## this function travis-encrypts github repo $1's secret $2
-  local GITHUB_REPO="$1"
-  local SECRET="$2"
+  local GITHUB_REPO=$1
+  local SECRET=$2
   ## get public rsa key from https://api.travis-ci.org/repos/<owner>/<repo>/key
   curl -3fLs https://api.travis-ci.org/repos/$GITHUB_REPO/key\
     | perl -pe "s/[^-]+(.+-).+/\$1/; s/\\\\n/\n/g; s/ RSA / /g"\
@@ -128,7 +128,7 @@ shUtility2NpmInstallUtility2() {
   ## install phantomjs
   if [ ! -d ".install/phantomjs" ]
   then
-    shCiBuildLog npmInstallUtility2 "installing phantomjs ..."
+    shBuildLog npmInstallUtility2 "installing phantomjs ..."
     case $NODEJS_PROCESS_PLATFORM in
     darwin)
       FILE=phantomjs-1.9.7-macosx
@@ -158,7 +158,7 @@ shUtility2NpmInstallUtility2() {
   ## install slimerjs
   if [ ! -d ".install/slimerjs" ]
   then
-    shCiBuildLog npmInstallUtility2 "installing slimerjs ..."
+    shBuildLog npmInstallUtility2 "installing slimerjs ..."
     case $NODEJS_PROCESS_PLATFORM in
     darwin)
       FILE=slimerjs-0.9.1-mac
@@ -248,7 +248,7 @@ shUtility2Main() {
   UTILITY2_EXTERNAL_TAR_GZ=utility2-external.$(echo $NODEJS_PACKAGE_JSON_VERSION\
     | perl -ne "print \$1 if /(\d+\.\d+\.\d+)/").tar.gz
   ## save current dir to $CWD
-  CWD="$(pwd)"
+  CWD=$(pwd)
   ## init $EXIT_CODE
   EXIT_CODE=0
   ## eval argv
