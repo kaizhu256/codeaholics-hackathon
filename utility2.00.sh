@@ -165,7 +165,7 @@ shBuildHerokuDeploy() {
   (
     curl -3fLs $HEROKU_URL > /dev/null\
       && shBuildLog herokuDeploy "check passed"\
-      || (shCiBUildLog herokuDeploy "check failed"; return 1)
+      || (shBuildLog herokuDeploy "check failed"; return 1)
   )
   ## restore $CWD
   cd $CWD || return $?

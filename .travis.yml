@@ -17,4 +17,4 @@ language: node_js
 node_js:
 - '0.10'
 script:
-  - ./utility2.sh shCiBuild
+  - ./utility2.sh shBuild
