@@ -6810,41 +6810,6 @@ console.log('hello test');
       next();
     },
 
-    'routerMainDict_/test/test.401': function (request, response) {
-      /*
-        this function responds with a 401 authorization required
-      */
-      utility2.serverRespond(request, response, 401, {});
-    },
-
-    '_routerMainDict_/test/test.401_default_test': function (onEventError) {
-      /*
-        this function tests routerMainDict_/test/test.401's default handling behavior
-      */
-      utility2.ajax({ url: '/test/test.401' }, function (error) {
-        utility2.tryCatch(function () {
-          /* assert error occurred */
-          utility2.assert(error instanceof Error, error);
-          onEventError();
-        }, onEventError);
-      });
-    },
-
-    'routerMainDict_/test/test.echo': function (request, response) {
-      /*
-        this function echoes the request back to the response
-      */
-      utility2.serverResponseWriteHead(response, 200, { 'content-type': 'text/plain' });
-      response.write(request.method + ' ' + request.url + ' http/' + request.httpVersion
-        + '\n');
-      Object.keys(request.headers).forEach(function (name) {
-        response.write(name + ': ' + request.headers[name] + '\n');
-      });
-      response.write('\n');
-      /* optimization - stream data */
-      request.pipe(response);
-    },
-
     'routerMainDict_/test/testReportUpload': function (request, response, next) {
       /*
         this function receives and parses uploaded test reports
@@ -7199,11 +7164,6 @@ console.log('hello test');
         || statusCode + ' ' + (required.http.STATUS_CODES[statusCode] || 'Unknown Status Code');
       options.headers = options.headers || {};
       switch (statusCode) {
-      /* 401 unauthorized */
-      case 401:
-        options.headers['www-authenticate'] = options.headers['www-authenticate']
-          || 'Basic realm="Authorization Required"';
-        break;
       /* 500 internal server error */
       case 500:
         utility2.onEventErrorDefault(options.error);
@@ -7308,33 +7268,28 @@ console.log('hello test');
       utility2.ajax({ url: '/' }, onEventError);
     },
 
-    '_routerMainDict_/test/test.echo_default_test': function (onEventError) {
+    '_routerMainDict_/public_default_test': function (onEventError) {
       /*
-        this function tests routerMainDict_/test/test.echo's default handling behavior
+        this function tests routerMainDict_/public's default handling behavior
       */
-      utility2.ajax({
-        data: '_ajax_default_test',
-        url: '/test/test.echo'
-      }, function (error, data) {
+      var onEventReady;
+      onEventReady = utility2.untilReady(onEventError);
+      onEventReady.remaining += 2;
+      /* test default handling behavior */
+      utility2.ajax({ url: '/public/utility2/utility2.js' }, function (error) {
         utility2.tryCatch(function () {
           /* assert no error occurred */
           utility2.assert(!error, error);
-          /* validate echo data */
-          utility2.assert((/\n\n_ajax_default_test$/).test(data), data);
-          onEventError();
-        }, onEventError);
+          onEventReady();
+        });
       });
-    },
-
-    '_routerMainDict_/public_404_test': function (onEventError) {
-      /*
-        this function tests routerMainDict_/public's 404 handling behavior
-      */
       /* test non-existent url handling behavior */
       utility2.ajax({ url: '/public/' + utility2.uuid4() }, function (error) {
-        /* assert error occurred */
-        utility2.assert(error instanceof Error, error);
-        onEventError();
+        utility2.tryCatch(function () {
+          /* assert error occurred */
+          utility2.assert(error instanceof Error, error);
+          onEventReady();
+        });
       });
     }
 
