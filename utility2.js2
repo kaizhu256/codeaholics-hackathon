@@ -6768,24 +6768,15 @@ console.log('hello test');
 
     _initOnce: function () {
       /* init middlewares */
-      [
-        'Test',
-        'Logging',
-        'Security',
-        'Cache',
-        'Proxy',
-        'Main',
-        'File'
-      ].forEach(function (middleware, ii) {
-        middleware = ii + middleware;
+      ['Logging', 'Main'].forEach(function (middleware) {
         /* init middleware router dict */
         state['router' + middleware + 'Dict'] = state['router' + middleware + 'Dict'] || {};
         /* init middleware */
         state['middleware' + middleware] = state['middleware' + middleware]
           || local._createMiddleware(state['router' + middleware + 'Dict']);
       });
-      /* middleware1LoggingDefault */
-      state.middleware1LoggingDefault = state.middleware1LoggingDefault
+      /* middlewareLoggingDefault */
+      state.middlewareLoggingDefault = state.middlewareLoggingDefault
         || required.connect_logger('dev');
       /* init server */
       /* defer local tests until server is listening on state.serverPort */
@@ -6794,7 +6785,7 @@ console.log('hello test');
       utility2.serverListen(utility2.readyUtility2);
     },
 
-    'router1LoggingDict_/': function (request, response, next) {
+    'routerLoggingDict_/': function (request, response, next) {
       /*
         this function handles default logging
       */
@@ -6804,70 +6795,11 @@ console.log('hello test');
         next();
         break;
       default:
-        state.middleware1LoggingDefault(request, response, next);
+        state.middlewareLoggingDefault(request, response, next);
       }
     },
 
-    // 'router3CacheDict_/public/utility2': function (_, response, next) {
-      // /*
-        // this function caches files served from /public/utility2
-      // */
-      // utility2.nop(_);
-      // utility2.serverResponseWriteHead(response, null, {
-        // 'cache-control': 'public, max-age=31536000'
-      // });
-      // next();
-    // },
-
-    'router4ProxyDict_/proxy/proxy.ajax': function (request, response, next) {
-      /*
-        this function proxies frontend request
-      */
-      var headers, url;
-      /* allow cors */
-      response.setHeader('Access-Control-Allow-Origin', '*');
-      url = request.url.replace('/proxy/proxy.ajax/', '');
-      /* create modified copy of request.header */
-      headers = utility2.jsonCopy(request.headers);
-      /* update host header with actual destination host */
-      headers.host = required.url.parse(url).host;
-      /* init http request */
-      utility2.ajax({
-        data: request,
-        headers: headers,
-        resultType: 'response',
-        url: url
-      }, function (error, response2) {
-        if (error) {
-          next(error);
-          return;
-        }
-        /* optimization - pipe proxied response back to client */
-        response2.pipe(response);
-      });
-    },
-
-    '_router4ProxyDict_/proxy.ajax_error_test': function (onEventError) {
-      /*
-        this function tests router4ProxyDict_/proxy.ajax's error handling behavior
-      */
-      utility2.testMock(onEventError, [
-        [utility2, { ajax: utility2.callError1 }]
-      ], function (onEventError) {
-        local['router4ProxyDict_/proxy/proxy.ajax']({
-          headers: {},
-          url: ''
-        }, { setHeader: utility2.nop }, function (error) {
-          utility2.tryCatch(function () {
-            /* assert error occurred */
-            utility2.assert(error instanceof Error, error);
-            onEventError();
-          }, onEventError);
-        });
-      });
-    },
-
-    'router5MainDict_/': function (request, response, next) {
+    'routerMainDict_/': function (request, response, next) {
       /*
         this function handles the main page
       */
@@ -6878,16 +6810,16 @@ console.log('hello test');
       next();
     },
 
-    'router5MainDict_/test/test.401': function (request, response) {
+    'routerMainDict_/test/test.401': function (request, response) {
       /*
         this function responds with a 401 authorization required
       */
       utility2.serverRespond(request, response, 401, {});
     },
 
-    '_router5MainDict_/test/test.401_default_test': function (onEventError) {
+    '_routerMainDict_/test/test.401_default_test': function (onEventError) {
       /*
-        this function tests router5MainDict_/test/test.401's default handling behavior
+        this function tests routerMainDict_/test/test.401's default handling behavior
       */
       utility2.ajax({ url: '/test/test.401' }, function (error) {
         utility2.tryCatch(function () {
@@ -6898,7 +6830,7 @@ console.log('hello test');
       });
     },
 
-    'router5MainDict_/test/test.echo': function (request, response) {
+    'routerMainDict_/test/test.echo': function (request, response) {
       /*
         this function echoes the request back to the response
       */
@@ -6913,7 +6845,7 @@ console.log('hello test');
       request.pipe(response);
     },
 
-    'router5MainDict_/test/testReportUpload': function (request, response, next) {
+    'routerMainDict_/test/testReportUpload': function (request, response, next) {
       /*
         this function receives and parses uploaded test reports
       */
@@ -6950,15 +6882,15 @@ console.log('hello test');
       onEventError2();
     },
 
-    '_router5MainDict_/test/testReportUpload_error_test': function (onEventError) {
+    '_routerMainDict_/test/testReportUpload_error_test': function (onEventError) {
       /*
-        this function tests router5MainDict_/test/testReportUpload's error handling behavior
+        this function tests routerMainDict_/test/testReportUpload's error handling behavior
       */
       utility2.testMock(onEventError, [
         [utility2, { streamReadAll: utility2.callError1 }]
       ], function (onEventError) {
         local[
-          'router5MainDict_/test/testReportUpload'
+          'routerMainDict_/test/testReportUpload'
         ](null, null, function (error) {
           /* assert error occurred */
           utility2.assert(error instanceof Error, error);
@@ -6967,9 +6899,9 @@ console.log('hello test');
       });
     },
 
-    '_router5MainDict_/test/testReportUpload_testsFailed_test': function (onEventError) {
+    '_routerMainDict_/test/testReportUpload_testsFailed_test': function (onEventError) {
       /*
-        this function tests router5MainDict_/test/testReportUpload's
+        this function tests routerMainDict_/test/testReportUpload's
         tests failed handling behavior
       */
       utility2.testMock(onEventError, [
@@ -6985,13 +6917,13 @@ console.log('hello test');
         } }]
       ], function (onEventError) {
         state.onEventErrorDefaultIgnoreList.push('tests failed');
-        local['router5MainDict_/test/testReportUpload'](null, {
+        local['routerMainDict_/test/testReportUpload'](null, {
           end: onEventError
         }, onEventError);
       });
     },
 
-    'router6FileDict_/public': function (request, response, next) {
+    'routerMainDict_/public': function (request, response, next) {
       /*
         this function serves public files
       */
@@ -7007,7 +6939,7 @@ console.log('hello test');
       utility2.serverRespondFile(response, process.cwd() + request.urlPathNormalized, next);
     },
 
-    'router6FileDict_/test': function (request, response, next) {
+    'routerMainDict_/test': function (request, response, next) {
       /*
         this function serves public files
       */
@@ -7022,7 +6954,7 @@ console.log('hello test');
       next();
     },
 
-    'router6FileDict_/test/test.html': function (request, response) {
+    'routerMainDict_/test/test.html': function (request, response) {
       /*
         this function serves public files
       */
@@ -7035,7 +6967,7 @@ console.log('hello test');
       });
     },
 
-    _createMiddleware: function (router5MainDict) {
+    _createMiddleware: function (routerMainDict) {
       /*
         this function creates a middleware app using the specified router dict
       */
@@ -7076,13 +7008,13 @@ console.log('hello test');
             break;
           case 2:
             path = request.urlPathNormalized;
-            while (!(router5MainDict[path] || path === '/')) {
+            while (!(routerMainDict[path] || path === '/')) {
               path = required.path.dirname(path);
             }
             /* found a handler matching request path */
-            if (router5MainDict[path]) {
+            if (routerMainDict[path]) {
               /* debug request handler */
-              state.debugServerRequestHandler = router5MainDict[path];
+              state.debugServerRequestHandler = routerMainDict[path];
               /* process request with error handling */
               utility2.tryCatch(onEventError2, next);
             /* else move on to next middleware */
@@ -7091,7 +7023,7 @@ console.log('hello test');
             }
             break;
           case 3:
-            router5MainDict[path](request, response, next);
+            routerMainDict[path](request, response, next);
             break;
           }
         };
@@ -7190,31 +7122,12 @@ console.log('hello test');
       onEventError2 = function (error) {
         mode = utility2.modeIncrement(error, mode);
         switch (mode) {
-        /* 1. middleware logging */
         case 1:
-          state.middleware1Logging(request, response, onEventError2);
+          state.middlewareLogging(request, response, onEventError2);
           break;
-        /* 2. middleware security */
         case 2:
-          state.middleware2Security(request, response, onEventError2);
+          state.middlewareMain(request, response, onEventError2);
           break;
-        /* 3. middleware cache */
-        case 3:
-          state.middleware3Cache(request, response, onEventError2);
-          break;
-        /* 4. middleware proxy */
-        case 4:
-          state.middleware4Proxy(request, response, onEventError2);
-          break;
-        /* 5. middleware main */
-        case 5:
-          state.middleware5Main(request, response, onEventError2);
-          break;
-        /* 6. middleware file */
-        case 6:
-          state.middleware6File(request, response, onEventError2);
-          break;
-        /* fallback to next middleware */
         default:
           next(error);
         }
@@ -7379,42 +7292,25 @@ console.log('hello test');
       utility2.initLocal(local);
     },
 
-    '_router1LoggingDict_/_ignoreLogging_test': function (onEventError) {
+    '_routerLoggingDict_/_ignoreLogging_test': function (onEventError) {
       /*
-        this function tests router1LoggingDict_/'s ignore logging handling behavior
+        this function tests routerLoggingDict_/'s ignore logging handling behavior
       */
       utility2.ajax({ url: '/favicon.ico' }, function () {
         onEventError();
       });
     },
 
-    '_router4ProxyDict_/proxy.ajax_default_test': function (onEventError) {
+    '_routerMainDict_/_default_test': function (onEventError) {
       /*
-        this function tests router4ProxyDict_/proxy.ajax's default handling behavior
-      */
-      utility2.ajax({
-        url: '/proxy/proxy.ajax//test/test.json'
-      }, function (error, data) {
-        utility2.tryCatch(function () {
-          /* assert no error occurred */
-          utility2.assert(!error, error);
-          /* validate json data */
-          utility2.assert(data === '"hello test"', data);
-          onEventError();
-        }, onEventError);
-      });
-    },
-
-    '_router5MainDict_/_default_test': function (onEventError) {
-      /*
-        this function tests _router5MainDict_/'s default handling behavior
+        this function tests _routerMainDict_/'s default handling behavior
       */
       utility2.ajax({ url: '/' }, onEventError);
     },
 
-    '_router5MainDict_/test/test.echo_default_test': function (onEventError) {
+    '_routerMainDict_/test/test.echo_default_test': function (onEventError) {
       /*
-        this function tests router5MainDict_/test/test.echo's default handling behavior
+        this function tests routerMainDict_/test/test.echo's default handling behavior
       */
       utility2.ajax({
         data: '_ajax_default_test',
@@ -7430,9 +7326,9 @@ console.log('hello test');
       });
     },
 
-    '_router6FileDict_/public_404_test': function (onEventError) {
+    '_routerMainDict_/public_404_test': function (onEventError) {
       /*
-        this function tests router6FileDict_/public's 404 handling behavior
+        this function tests routerMainDict_/public's 404 handling behavior
       */
       /* test non-existent url handling behavior */
       utility2.ajax({ url: '/public/' + utility2.uuid4() }, function (error) {
