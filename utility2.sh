@@ -4,9 +4,9 @@ shAesDecrypt() {
   ## save stdin to $TEXT
   local TEXT=$(cat /dev/stdin)
   ## init $IV from first 44 base64-encoded bytes of $TEXT
-  local IV=$(printf ${TEXT:0:44} | base64 --decode)
+  local IV=$(printf $TEXT | cut -c1-44 | base64 --decode)
   ## decrypt remaining base64-encoded bytes of $TEXT to stdout using aes-256-cbc
-  printf "${TEXT:44}" | base64 --decode | openssl enc -aes-256-cbc -d -K $AES_256_KEY -iv $IV
+  printf $TEXT | cut -c45-9999 | base64 --decode | openssl enc -aes-256-cbc -d -K $AES_256_KEY -iv $IV
 }
 
 shAesEncrypt() {
@@ -18,6 +18,111 @@ shAesEncrypt() {
   printf $(printf "$IV " | base64)
   ## encrypt stdin and stream to stdout using aes-256-cbc with base64-encoding
   openssl enc -aes-256-cbc -K $AES_256_KEY -iv $IV | base64 | tr -d "\n" || return $?
+}
+
+shBuild() {
+  ## this function builds the app
+  ## init ci build
+  if [ ! "$NODEJS_PACKAGE_JSON_NAME" ]
+  then
+    shBuildLog init "could not read package.json"
+    exit 1
+  fi
+  shBuildLog aesDecrypt "shasum - $(printf $AES_256_KEY | shasum) \$AES_256_KEY"
+  ## decrypt and eval $AES_ENCRYPTED_SH
+  eval "$(shUtility2Decrypt)" || exit $?
+  if [ ! "$GITHUB_TOKEN" ]
+  then
+    exit 1
+  fi
+  ## init travis-ci.org env
+  if [ "$TRAVIS" ]
+  then
+    ## export $CI_BUILD_DIR
+    export CI_BUILD_DIR=/build.travis-ci.org
+    ## export TRAVIS_* vars as CI_* vars
+    if [ ! "$CI_BRANCH" ]
+    then
+      export CI_BRANCH=$TRAVIS_BRANCH
+    fi
+    if [ ! "$CI_BUILD_NUMBER" ]
+    then
+      export CI_BUILD_NUMBER=$TRAVIS_BUILD_NUMBER
+    fi
+    if [ ! "$CI_COMMIT_ID" ]
+    then
+      export CI_COMMIT_ID=$TRAVIS_COMMIT
+    fi
+  else
+    export CI_BUILD_DIR=/build.local
+  fi
+  ## export CI_* vars
+  if [ ! "$CI_BRANCH" ]
+  then
+    export CI_BRANCH=$(git rev-parse --abbrev-ref HEAD)
+  fi
+  if [ ! "$CI_COMMIT_ID" ]
+  then
+    export CI_COMMIT_ID=$(git rev-parse --verify HEAD)
+  fi
+  if [ ! "$CI_COMMIT_MESSAGE" ]
+  then
+    export CI_COMMIT_MESSAGE=$(git log -1 --pretty=%s)
+  fi
+  if [ ! "$CI_COMMIT_INFO" ]
+  then
+    export CI_COMMIT_INFO="$CI_COMMIT_ID - $CI_COMMIT_MESSAGE"
+  fi
+  export CI_BUILD_DIR_COMMIT=$CI_BUILD_DIR/$CI_BUILD_NUMBER.$CI_BRANCH.$CI_COMMIT_ID
+  export CI_BUILD_DIR_LATEST=$CI_BUILD_DIR/latest.$CI_BRANCH
+  ## used in test report summary
+  export GITHUB_REPO_URL=https://github.com/$GITHUB_REPO/tree/$CI_BRANCH
+  ## this function runs npm test on the local app
+  shBuildLog npmTestLocal "npm test $CWD ..."
+  ## npm test
+  npm test || return $?
+  shBuildLog npmTestLocal "npm test passed"
+  if [ "$CI_BRANCH" != local ]
+  then
+    ## save $EXIT_CODE
+    EXIT_CODE=$?
+    ## restore $CWD
+    cd $CWD || shBuildExit $?
+  fi
+  ## gracefully exit ci build
+  shBuildExit $EXIT_CODE
+}
+
+shBuildExit() {
+  ## this function gracefully exits the ci build
+  ## save exit code
+  local EXIT_CODE=$?
+  ## restore $CWD
+  cd $CWD
+  ## cleanup $GIT_SSH_KEY_FILE
+  rm -f $GIT_SSH_KEY_FILE
+  # if [ "$CI_BRANCH" != local ]
+  # then
+    # ## init $GITHUB_GH_PAGES
+    # local GITHUB_GH_PAGES=$(echo $GITHUB_REPO | perl -pe "s/\//.github.io\//")
+    # ## push build artifact to github
+    # for FILE in $CI_BUILD_DIR_COMMIT $CI_BUILD_DIR_LATEST
+    # do
+      # shBuildLog buildExit\
+        # "uploading test report https://$GITHUB_GH_PAGES/$FILE/test-report.html ..."
+      # shBuildLog buildExit\
+        # "uploading coverage report https://$GITHUB_GH_PAGES/$FILE/coverage-report/index.html\
+# ..."
+      # ## update build artifact with test and coverage reports
+      # $UTILITY2_JS\
+        # --github-file=$FILE\
+        # --github-local=.build\
+        # --mode-cli=dbGithubDirUpdate\
+        # --mode-github=$GITHUB_REPO/gh-pages || exit $?
+    # done
+  # fi
+  ## exit with exit code
+  exit $EXIT_CODE
 }
 
 shBuildLog() {
@@ -46,7 +151,7 @@ shGitDeploy() {
 
 shModuleEval() {
   ## this function evals the module $1
-  local FILE=$UTILITY2_DIR/utility2.js2
+  local FILE=utility2.js2
   local MODULE=$1
   ## init $SCRIPT
   local SCRIPT="var ii, script; global.state = { modeModuleEval: true, modeNodejs: true };"
@@ -58,6 +163,51 @@ shModuleEval() {
   SCRIPT="$SCRIPT require('vm').runInThisContext(script, \"$FILE\");"
   ## eval $SCRIPT
   node -e "$SCRIPT" "$@"
+}
+
+shUtility2Decrypt() {
+  ## this function decrypts $AES_ENCRYPTED_SH in .travis.yml to stdout
+  perl -ne "print \$2 if /(- AES_ENCRYPTED_SH: )(.*)( ## AES_ENCRYPTED_SH\$)/" .travis.yml\
+    | shAesDecrypt\
+    || return $?
+}
+
+shUtility2Encrypt() {
+  ## this function encrypts the script $1 to $AES_ENCRYPTED_SH and stores it in .travis.yml
+  ## init $FILE
+  local FILE=$1
+  if [ ! -f "$FILE" ]
+  then
+    printf "## non-existent file $FILE\n"
+    return 1
+  fi
+  if [ ! "$AES_256_KEY" ]
+  then
+    printf "## no \$AES_256_KEY detected in env - creating new AES_256_KEY ...\n"
+    AES_256_KEY=$(openssl rand -hex 32)
+    printf "## a new \$AES_256_KEY for encrypting data has been created.\n"
+    printf "## you may want to copy the following to your .bashrc script\n"
+    printf "## so you can run ci builds locally:\n"
+    printf "export AES_256_KEY=$AES_256_KEY\n\n"
+  fi
+  printf "## travis-encrypting \$AES_256_KEY for $GITHUB_REPO ...\n"
+  AES_256_KEY_ENCRYPTED=$(shTravisEncrypt $GITHUB_REPO \$AES_256_KEY=$AES_256_KEY)
+  ## return non-zero exit code if $AES_256_KEY_ENCRYPTED is empty string
+  if [ ! "$AES_256_KEY_ENCRYPTED" ]
+  then
+    return 1
+  fi
+  printf "## updating .travis.yml with encrypted key ...\n"
+  perl -i -pe\
+    "s%(- secure: )(.*)( ## AES_256_KEY$)%\$1$AES_256_KEY_ENCRYPTED\$3%"\
+    .travis.yml\
+    || return $?
+
+  printf "## updating .travis.yml with encrypted script ...\n"
+  perl -i -pe\
+    "s%(- AES_ENCRYPTED_SH: )(.*)( ## AES_ENCRYPTED_SH$)%\$1$(shAesEncrypt < $FILE)\$3%"\
+    .travis.yml\
+    || return $?
 }
 
 shTravisEncrypt() {
@@ -235,20 +385,13 @@ shUtility2Main() {
   then
     return
   fi
-  ## init $UTILITY2_DIR
-  if [ -f "./utility2.cli.js" ]
-  then
-    UTILITY2_DIR=$(pwd)
-  else
-    UTILITY2_DIR=$(node -e "require('utility2'); console.log(utility2.__dirname)")
-  fi
-  UTILITY2_JS=$UTILITY2_DIR/utility2.cli.js
-  ## init nodejs env
-  eval "$(shModuleEval moduleCliExportEnvNodejs)" || return $?
-  UTILITY2_EXTERNAL_TAR_GZ=utility2-external.$(echo $NODEJS_PACKAGE_JSON_VERSION\
-    | perl -ne "print \$1 if /(\d+\.\d+\.\d+)/").tar.gz
   ## save current dir to $CWD
   CWD=$(pwd)
+  ## init nodejs env
+  eval "$(shModuleEval moduleCliExportEnvNodejs)" || return $?
+  UTILITY2_JS=$CWD/utility2.cli.js
+  UTILITY2_EXTERNAL_TAR_GZ=utility2-external.$(echo $NODEJS_PACKAGE_JSON_VERSION\
+    | perl -ne "print \$1 if /(\d+\.\d+\.\d+)/").tar.gz
   ## init $EXIT_CODE
   EXIT_CODE=0
   ## eval argv

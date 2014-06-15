@@ -101,43 +101,11 @@ shBuild() {
   shBuildExit $EXIT_CODE
 }
 
-shBuildExit() {
-  ## this function gracefully exits the ci build
-  ## save exit code
-  local EXIT_CODE=$?
-  ## restore $CWD
-  cd $CWD
-  ## cleanup $GIT_SSH_KEY_FILE
-  rm -f $GIT_SSH_KEY_FILE
-  if [ "$CI_BRANCH" != local ]
-  then
-    ## init $GITHUB_GH_PAGES
-    local GITHUB_GH_PAGES=$(echo $GITHUB_REPO | perl -pe "s/\//.github.io\//")
-    ## push build artifact to github
-    for FILE in $CI_BUILD_DIR_COMMIT $CI_BUILD_DIR_LATEST
-    do
-      shBuildLog buildExit\
-        "uploading test report https://$GITHUB_GH_PAGES/$FILE/test-report.html ..."
-      shBuildLog buildExit\
-        "uploading coverage report https://$GITHUB_GH_PAGES/$FILE/coverage-report/index.html\
-..."
-      ## update build artifact with test and coverage reports
-      $UTILITY2_JS\
-        --github-file=$FILE\
-        --github-local=.build\
-        --mode-cli=dbGithubDirUpdate\
-        --mode-github=$GITHUB_REPO/gh-pages || exit $?
-    done
-  fi
-  ## exit with exit code
-  exit $EXIT_CODE
-}
-
 shBuildHerokuDeploy() {
   ## this function deploys the app to heroku
   shBuildLog herokuDeploy "deploying $NODEJS_PACKAGE_JSON_NAME to heroku ..."
   ## export $GIT_SSH
-  export GIT_SSH=$UTILITY2_DIR/.install/git-ssh.sh
+  export GIT_SSH=$CWD/.install/git-ssh.sh
   ## export and create $GIT_SSH_KEY_FILE
   export GIT_SSH_KEY_FILE=$(mktemp /tmp/.git-ssh-key-file-XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX)
   ## save $GIT_SSH_KEY to $GIT_SSH_KEY_FILE
@@ -186,11 +154,6 @@ shBuildNpmPublish() {
 }
 
 shBuildNpmTestLocal() {
-  ## this function runs npm test on the local app
-  shBuildLog npmTestLocal "npm test $CWD ..."
-  ## npm test
-  npm test || return $?
-  shBuildLog npmTestLocal "npm test passed"
 }
 
 shBuildNpmTestPublished() {
@@ -296,50 +259,5 @@ shSemverGreaterThan() {
   else
     return 1
   fi
-}
-
-shUtility2Decrypt() {
-  ## this function decrypts $AES_ENCRYPTED_SH in .travis.yml to stdout
-  perl -ne "print \$2 if /(- AES_ENCRYPTED_SH: )(.*)( ## AES_ENCRYPTED_SH\$)/" .travis.yml\
-    | shAesDecrypt\
-    || return $?
-}
-
-shUtility2Encrypt() {
-  ## this function encrypts the script $1 to $AES_ENCRYPTED_SH and stores it in .travis.yml
-  ## init $FILE
-  local FILE=$1
-  if [ ! -f "$FILE" ]
-  then
-    printf "## non-existent file $FILE\n"
-    return 1
-  fi
-  if [ ! "$AES_256_KEY" ]
-  then
-    printf "## no \$AES_256_KEY detected in env - creating new AES_256_KEY ...\n"
-    AES_256_KEY=$(openssl rand -hex 32)
-    printf "## a new \$AES_256_KEY for encrypting data has been created.\n"
-    printf "## you may want to copy the following to your .bashrc script\n"
-    printf "## so you can run ci builds locally:\n"
-    printf "export AES_256_KEY=$AES_256_KEY\n\n"
-  fi
-  printf "## travis-encrypting \$AES_256_KEY for $GITHUB_REPO ...\n"
-  AES_256_KEY_ENCRYPTED=$(shTravisEncrypt $GITHUB_REPO \$AES_256_KEY=$AES_256_KEY)
-  ## return non-zero exit code if $AES_256_KEY_ENCRYPTED is empty string
-  if [ ! "$AES_256_KEY_ENCRYPTED" ]
-  then
-    return 1
-  fi
-  printf "## updating .travis.yml with encrypted key ...\n"
-  perl -i -pe\
-    "s%(- secure: )(.*)( ## AES_256_KEY$)%\$1$AES_256_KEY_ENCRYPTED\$3%"\
-    .travis.yml\
-    || return $?
-
-  printf "## updating .travis.yml with encrypted script ...\n"
-  perl -i -pe\
-    "s%(- AES_ENCRYPTED_SH: )(.*)( ## AES_ENCRYPTED_SH$)%\$1$(shAesEncrypt < $FILE)\$3%"\
-    .travis.yml\
-    || return $?
 }
 
