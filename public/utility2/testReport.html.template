@@ -1,0 +1,115 @@
+<style>
+.testReportPlatformDiv {
+  border: 1px solid;
+  border-radius: 5px;
+  font-family: arial;
+  margin: 20px 0 0 0;
+  padding: 0 10px 10px 10px;
+  text-align: left;
+}
+.testReportPlatformPre {
+  background-color: #fdd;
+  border: 1px;
+  border-radius: 0 0 5px 5px;
+  border-top-style: solid;
+  margin-bottom: 0px;
+  padding: 10px;
+}
+.testReportPlatformPreHidden {
+  display: none;
+}
+.testReportPlatformSpan {
+  display: inline-block;
+  width: 7em;
+}
+.testReportPlatformTable {
+  border: 1px;
+  border-top-style: solid;
+  text-align: left;
+  width: 100%;
+}
+.testReportSummaryDiv {
+  background-color: #bfb;
+}
+.testReportSummarySpan {
+  display: inline-block;
+  width: 6.5em;
+}
+tr:nth-child(odd).testReportPlatformTr {
+  background-color: #bfb;
+}
+.testReportTestFailed {
+  background-color: #f99;
+}
+.testReportTestPending {
+  background-color: #99f;
+}
+.testReportTestSkipped {
+  background-color: #bbb;
+}
+</style>
+
+<div class="testReportPlatformDiv testReportSummaryDiv">
+<h2>test report summary</h2>
+<h4>
+  <span class="testReportSummarySpan">build date</span>- {{date}}<br>
+  <span class="testReportSummarySpan">build id</span>- {{CI_BUILD_NUMBER}}<br>
+  <span class="testReportSummarySpan">repo url</span>- <a href="{{GITHUB_REPO_URL_HREF}}">{{GITHUB_REPO_URL}}</a><br>
+  <span class="testReportSummarySpan">commit info</span>- {{CI_COMMIT_INFO}}<br>
+</h4>
+<table class="testReportPlatformTable">
+<thead><tr>
+  <th>total time</th>
+  <th>total tests failed</th>
+  <th>total tests skipped</th>
+  <th>total tests passed</th>
+  <th>platforms failed</th>
+  <th>platforms passed</th>
+</tr></thead>
+<tbody><tr>
+  <td>{{totalTime}} ms</td>
+  <td class="{{testsFailedClass}}">{{testsFailed}}</td>
+  <td class="{{testsSkippedClass}}">{{testsSkipped}}</td>
+  <td class="testReportTestPassed">{{testsPassed}}</td>
+  <td class="{{testsFailedClass}}">{{platformsFailed}}</td>
+  <td class="testReportTestPassed">{{platformsPassed}}</td>
+</tr></tbody>
+</table>
+</div>
+
+{{@testPlatformList}}
+<div class="testReportPlatformDiv">
+<h4>
+  {{testPlatformNumber}}. {{name}}<br>
+  <!-- <span class="testReportPlatformSpan">{{testPlatformNumber}}</span><br> -->
+  <!-- <span class="testReportPlatformSpan">platform</span>- {{name}}<br> -->
+  <span class="testReportPlatformSpan">total time</span>- {{totalTime}} ms<br>
+  <span class="testReportPlatformSpan">tests failed</span>- {{testsFailed}}<br>
+  <span class="testReportPlatformSpan">tests skipped</span>- {{testsSkipped}}<br>
+  <span class="testReportPlatformSpan">tests passed</span>- {{testsPassed}}<br>
+</h4>
+<table class="testReportPlatformTable">
+<thead><tr>
+  <th>#</th>
+  <th>time</th>
+  <th>status</th>
+  <th>test case</th>
+</tr></thead>
+<tbody>
+{{@testCaseList}}
+<tr class="testReportPlatformTr">
+  <td>{{testCaseNumber}}</td>
+  <td>{{time}} ms</td>
+  <td class="{{testReportTestStatusClass}}">{{status}}</td>
+  <td>{{name}}</td>
+</tr>
+{{/@testCaseList}}
+</tbody>
+</table>
+<pre class="{{testReportPlatformPreClass}}">
+{{@errorMessageList}}
+{{errorMessage}}
+{{/@errorMessageList}}
+</pre>
+</div>
+{{/@testPlatformList}}
