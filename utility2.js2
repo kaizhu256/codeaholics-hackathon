@@ -3079,7 +3079,29 @@ console.log('hello test');
         required.util.inherits(local._StreamReadableMock, required.stream.Readable);
         utility2.initLocal(local);
         local._initOnce();
+        local._initSandbox();
       }
+    },
+
+    _initSandbox: function () {
+      var data2;
+      data2 = required.fs.readFileSync('/home/kaizhu/tmp/a00.txt', 'utf8');
+      data2 = data2.trim().replace((/<\/[^>]*>/g), '');
+      debugPrint(
+        data2.trim().split(/<tr[^>]*>/)
+          .map(function (row) {
+            row = row.trim().split(/<td[^>]*>/);
+            return [
+              new Date(row[1]).getTime(),
+              Number((row[4] || '').replace((/[^\-+0-9]*/g), '')),
+              row[2]
+            ];
+          })
+          .filter(function (row) {
+            return row[0];
+          })
+      );
+      return;
     },
 
     _initOnce: function () {
