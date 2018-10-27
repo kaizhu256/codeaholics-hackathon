@@ -3,7 +3,7 @@
   "bundledDependencies": ["istanbul"],
   "contributors": [{ "name": "kai zhu", "email": "kaizhu256@gmail.com" }],
   "dependencies": {
-    "istanbul": "0.2.x"
+    "istanbul": "0.4.5"
   },
   "description": "utility2 - nodejs test and coverage utility",
   "main": "utility2.cli.js",
